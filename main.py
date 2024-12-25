@@ -17,7 +17,7 @@ def highlight_matching_area(image1, image2):
     gray2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
     # print(image1.shape, image2.shape)
     # Инициализируем SIFT детектор
-    sift = cv2.SIFT_create()
+    sift = cv2.ORB_create()
 
     # Находим ключевые точки и дескрипторы
     keypoints1, descriptors1 = sift.detectAndCompute(gray1, None)
@@ -37,19 +37,19 @@ def highlight_matching_area(image1, image2):
     src_pts = np.float32([keypoints1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
     dst_pts = np.float32([keypoints2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
 
-    mx = 0
-    mx2 = 0
-    for mt in matches:
-        p1 = keypoints1[mt.queryIdx].pt
-        p2 = keypoints2[mt.trainIdx].pt
-        if p1[0] > mx:
-            if image1.shape[1] - p1[0] < 100 and image2.shape[1] - p2[0] < 100:
-                x1, x2 = p1, p2
-                mx = p1[0]
-        if p2[0] > mx2:
-            if image1.shape[1] - p1[0] < 100 and image2.shape[1] - p2[0] < 100:
-                y1, y2 = p1, p2
-                mx2 = p2[0]
+    # mx = 0
+    # mx2 = 0
+    # for mt in matches:
+    #     p1 = keypoints1[mt.queryIdx].pt
+    #     p2 = keypoints2[mt.trainIdx].pt
+    #     if p1[0] > mx:
+    #         if image1.shape[1] - p1[0] < 100 and image2.shape[1] - p2[0] < 100:
+    #             x1, x2 = p1, p2
+    #             mx = p1[0]
+    #     if p2[0] > mx2:
+    #         if image1.shape[1] - p1[0] < 100 and image2.shape[1] - p2[0] < 100:
+    #             y1, y2 = p1, p2
+    #             mx2 = p2[0]
 
     # cv2.circle(image1, (int(x1[0]), int(x1[1])), 10, (0, 255, 0), 2)
     # cv2.circle(image2, (int(x2[0]), int(x2[1])), 10, (0, 255, 0), 2)
@@ -57,14 +57,14 @@ def highlight_matching_area(image1, image2):
     # cv2.circle(image2, (int(y2[0]), int(y2[1])), 10, (255, 0, 0), 2)
 
     # Находим гомографию
-    M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC)
+    M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
     # Извлекаем угловые точки из первого изображения
     h, w = image2.shape[:2]
     transform_image2 = cv2.warpPerspective(image1, M, (w, h))
     corners_image1 = np.array([[0, 0], [0, image1.shape[0] - 1], [image1.shape[1] - 1, image1.shape[0] - 1], [image1.shape[1] - 1, 0]], dtype='float32').reshape(-1, 1, 2)
 
     corners_image2 = cv2.perspectiveTransform(corners_image1, M)
-    corners_image2[2][0][0] = x2[0]
+    # corners_image2[2][0][0] = x2[0]
     # corners_image2 = np.append(corners_image2[0][:2], [[x1[0], image1.shape[0] - 1], [x1[0], 0]])
     # corners_image2 = corners_image1
     # Создаем маску для выделения области
@@ -73,8 +73,8 @@ def highlight_matching_area(image1, image2):
 
     # # # Применяем маску к изображению
     result_image = cv2.bitwise_and(image2, mask_image2)
-    # result_image = cv2.warpPerspective(result_image, np.linalg.inv(M), (image1.shape[1], image1.shape[0]))
-    # transform_image2 = cv2.warpPerspective(transform_image2, np.linalg.inv(M), (image1.shape[1], image1.shape[0]))
+    result_image = cv2.warpPerspective(result_image, np.linalg.inv(M), (image1.shape[1], image1.shape[0]))
+    transform_image2 = cv2.warpPerspective(transform_image2, np.linalg.inv(M), (image1.shape[1], image1.shape[0]))
     # cv2.imwrite('res.jpg', result_image)
     # # Соединяем угловые точки в прямоугольник
     corners_image2_int = np.int32(corners_image2)  # Преобразуем в целые числа
