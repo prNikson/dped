@@ -154,6 +154,6 @@ def highlight_matching_area(image1, image2):
 
 
 # Пример использования функции
-image1 = cv2.imread('pairs/2/camera.jpg')
-image2 = cv2.imread('pairs/2/kvadra.jpg')
+image1 = cv2.imread('pairs/11/camera.jpg')
+image2 = cv2.imread('pairs/11/kvadra.jpg')
 highlight_matching_area(image1, image2)
