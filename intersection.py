@@ -51,7 +51,6 @@ class CutIntersection:
         self.transform_image1 = cv2.warpPerspective(self.image1, H, (w, h))
         # self.transform_image1 = self.image1
 
-
         self.corners = self.create_corners(w, h)
 
         self.transform_corners = cv2.perspectiveTransform(self.corners.reshape(-1, 1, 2), H).reshape(-1, 2)
@@ -147,4 +146,3 @@ class CutIntersection:
 
 a = CutIntersection('pairs/8/camera.jpg', 'pairs/8/kvadra.jpg')
 a.find_area()
-# a.find_black_area()
