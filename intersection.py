@@ -65,6 +65,7 @@ class CutIntersection:
         self.transform_image2 = cv2.warpPerspective(self.transform_image2, np.linalg.inv(H), (self.image1.shape[1], self.image1.shape[0]))
 
         self.find_black_area()
+        self.remove_60px()
 
         self.show_result()
 
@@ -72,8 +73,6 @@ class CutIntersection:
         cv2.imwrite('res_image2.jpg', self.transform_image2)
 
     def show_result(self):
-
-        # cv2.polylines(self.image2, [np.int32(self.t)], isClosed=True, color=(0, 255, 0), thickness=3)
 
         plt.figure(figsize=(15, 10))
 
@@ -141,8 +140,13 @@ class CutIntersection:
         plt.axis('off')
         plt.show()
 
+    def remove_60px(self):
+        h, w = self.transform_image1.shape[:2]
+        self.transform_image1 = self.transform_image1[60:h-60, 60:w-60]
+        self.transform_image2 = self.transform_image2[60:h-60, 60:w-60]
+
     def create_corners(self, w, h):
         return np.array([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]], dtype='float32')
 
-a = CutIntersection('pairs/8/camera.jpg', 'pairs/8/kvadra.jpg')
+a = CutIntersection('pairs/11/camera.jpg', 'pairs/11/kvadra.jpg')
 a.find_area()
