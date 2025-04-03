@@ -19,8 +19,8 @@ def crop_img(img, scale=1.0):
 
 # @torch.no_grad
 def highlight_matching_area(image1, image2):
-    image1 = crop_img(image1, 0.7)
-    image2 = crop_img(image2, 0.9)
+    # image1 = crop_img(image1, 0.7)
+    # image2 = crop_img(image2, 0.9)
     # Преобразуем изображения в оттенки серого
     # image1 = crop_img(image1, 0.8)
     gray1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
@@ -119,41 +119,42 @@ def highlight_matching_area(image1, image2):
     # top_left = min_loc
     # bottom_right = (top_left[0] + w, top_left[1] + h)
     # cv2.rectangle(image1,top_left, bottom_right, 255, 2)
-    corners_image2_int = np.int32(corners_image2)  # Преобразуем в целые числа
-    cv2.polylines(image2, [corners_image2_int], isClosed=True, color=(0, 255, 0), thickness=3)
+    # corners_image2_int = np.int32(corners_image2)  # Преобразуем в целые числа
+    # cv2.polylines(image2, [corners_image2_int], isClosed=True, color=(0, 255, 0), thickness=3)
     # Отображаем результаты
-    plt.figure(figsize=(15, 10))
+    # plt.figure(figsize=(15, 10))
     # print(image1.shape, image2.shape)
-    plt.subplot(1, 4, 1)
-    plt.imshow(cv2.cvtColor(image1, cv2.COLOR_BGR2RGB))
-    plt.title('Image 1')
-    plt.axis('off')
+    # plt.subplot(1, 4, 1)
+    # plt.imshow(cv2.cvtColor(image1, cv2.COLOR_BGR2RGB))
+    # plt.title('Image 1')
+    # plt.axis('off')
 
-    plt.subplot(1, 4, 2)
-    plt.imshow(cv2.cvtColor(image2, cv2.COLOR_BGR2RGB))
-    plt.title('Image 2')
-    plt.axis('off')
+    # plt.subplot(1, 4, 2)
+    # plt.imshow(cv2.cvtColor(image2, cv2.COLOR_BGR2RGB))
+    # plt.title('Image 2')
+    # plt.axis('off')
 
-    plt.subplot(1, 4, 3)
+    # plt.subplot(1, 1, 1)
     # plt.imshow(cv2.cvtColor(cv2.warpPerspective(transform_image2, np.linalg.inv(M), (image1.shape[1], image1.shape[0])), cv2.COLOR_BGR2RGB))
     # plt.imshow(cv2.cvtColor(common_area, cv2.COLOR_BGR2RGB))
-    plt.imshow(cv2.cvtColor(transform_image1, cv2.COLOR_BGR2RGB))
-    plt.title('Highlighted Area in Image 2')
-    plt.axis('off')
+    # plt.imshow(cv2.drawMatches(image1, keypoints1, image2, keypoints2, matches[:40], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS))
+    # plt.title('Highlighted Area in Image 2')
+    # plt.axis('off')
+    # plt.subplot(1, 4, 4)
+    # plt.imshow(cv2.cvtColor(result_image, cv2.COLOR_BGR2RGB))
+    # plt.title('Highlighted Area in Image 2')
+    # plt.axis('off')
 
-    plt.subplot(1, 4, 4)
-    plt.imshow(cv2.cvtColor(result_image, cv2.COLOR_BGR2RGB))
-    plt.title('Highlighted Area in Image 2')
-    plt.axis('off')
+    # plt.show()
 
-    plt.show()
-
-    cv2.imwrite('res_image1.jpg', transform_image1)
-    cv2.imwrite('res_image2.jpg', result_image)
-
+    # cv2.imwrite('res_image1.jpg', transform_image1)
+    # cv2.imwriteres_image2.jpg', result_image)
 
 
 # Пример использования функции
-image1 = cv2.imread('pairs/11/camera.jpg')
-image2 = cv2.imread('pairs/11/kvadra.jpg')
-highlight_matching_area(image1, image2)
+image1 = cv2.imread('res_1.jpg')
+image2 = cv2.imread('res_2.jpg')
+# highlight_matching_area(image1, image2)
+print(image1.shape)
+cropped_iamge = image2[1507:1607, 4450:4550]
+cv2.imwrite('1.jpg', cropped_iamge)

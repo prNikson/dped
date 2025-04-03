@@ -65,12 +65,12 @@ class CutIntersection:
         self.transform_image2 = cv2.warpPerspective(self.transform_image2, np.linalg.inv(H), (self.image1.shape[1], self.image1.shape[0]))
 
         self.find_black_area()
-        self.remove_60px()
+        # self.remove_60px()
 
         self.show_result()
 
-        cv2.imwrite('res_image1.jpg', self.transform_image1)
-        cv2.imwrite('res_image2.jpg', self.transform_image2)
+        cv2.imwrite('res_1.jpg', self.transform_image1)
+        cv2.imwrite('res_2.jpg', self.transform_image2)
 
     def show_result(self):
 
@@ -148,5 +148,5 @@ class CutIntersection:
     def create_corners(self, w, h):
         return np.array([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]], dtype='float32')
 
-a = CutIntersection('pairs/11/camera.jpg', 'pairs/11/kvadra.jpg')
+a = CutIntersection('pairs/5/camera.jpg', 'pairs/5/kvadra.jpg')
 a.find_area()
