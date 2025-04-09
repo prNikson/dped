@@ -5,8 +5,8 @@ from scipy.stats import pearsonr
 import numpy as np
 
 
-img1 = cv2.imread('res_image1.jpg')
-img2 = cv2.imread('res_image2.jpg')
+img1 = cv2.imread('res_1.jpg')
+img2 = cv2.imread('res_2.jpg')
 
 assert img1.shape == img2.shape
 
@@ -18,8 +18,8 @@ patch_arr = list()
 cor_arr = list()
 
 x1, y1 = 0, 0
-for y in range(1, height):
-    for x in range(1, width):
+for y in range(1, height, 100):
+    for x in range(1, width, 100):
         if x + 109 < width and y + 109 < height:
             start_x = 1
             finish_x = width

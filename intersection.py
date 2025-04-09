@@ -17,9 +17,10 @@ class CutIntersection:
         img_cropped = img[int(top_y):int(bottom_y), int(left_x):int(right_x)]
         return img_cropped
 
-    def __homography(self):
-        gray1 = cv2.cvtColor(self.image1, cv2.COLOR_BGR2GRAY)
-        gray2 = cv2.cvtColor(self.image2, cv2.COLOR_BGR2GRAY)
+    def __homography(self, img1, img2):
+
+        gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+        gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
 
         orb = cv2.ORB_create()
 
@@ -41,32 +42,33 @@ class CutIntersection:
         return H
     
     def find_area(self):
-        self.image1 = self.__crop_img(self.image1, 0.85)
-        self.image2 = self.__crop_img(self.image2, 0.86)
-        
-        H = self.__homography()
-
+        # self.image1 = self.__crop_img(self.image1, 0.85)
+        # self.image2 = self.__crop_img(self.image2, 0.86)
+        H = self.__homography(self.image1, self.image2)
         h, w, _ = self.image1.shape
 
         self.transform_image1 = cv2.warpPerspective(self.image1, H, (w, h))
         # self.transform_image1 = self.image1
-
         self.corners = self.create_corners(w, h)
 
         self.transform_corners = cv2.perspectiveTransform(self.corners.reshape(-1, 1, 2), H).reshape(-1, 2)
-
         self.inv_corners = cv2.perspectiveTransform(self.transform_corners.reshape(-1, 1, 2), np.linalg.inv(H)).reshape(-1, 2)
         self.inv_corners_int = np.int32(self.inv_corners)
+
+        t = self.transform_corners
+        x0 = int(max(t[0][0], t[1][0]))
+        x1 = int(min(t[2][0], t[3][0]))
+        y0 = int(max(t[0][1], t[3][1]))
+        y1 = int(min(t[1][1], t[2][1]))
+        corners = np.array([[x0, y0], [x0, y1], [x1, y1], [x1, y0]])
         mask_image2 = np.zeros_like(self.image2)
         cv2.fillConvexPoly(mask_image2, np.int32(self.transform_corners), (255, 255, 255))
-        self.transform_image2 = cv2.bitwise_and(self.image2, mask_image2)     
+        self.transform_image2 = cv2.bitwise_and(self.image2, mask_image2)
+        # self.transform_image2 = self.find_mask(self.transform_image2)
+
 
         self.transform_image1 = cv2.warpPerspective(self.transform_image1, np.linalg.inv(H), (w, h))
         self.transform_image2 = cv2.warpPerspective(self.transform_image2, np.linalg.inv(H), (self.image1.shape[1], self.image1.shape[0]))
-
-        self.find_black_area()
-        # self.remove_60px()
-
         self.show_result()
 
         cv2.imwrite('res_1.jpg', self.transform_image1)
@@ -140,13 +142,29 @@ class CutIntersection:
         plt.axis('off')
         plt.show()
 
-    def remove_60px(self):
+    def match(self):
+
+        img1 = cv2.cvtColor(self.transform_image1, cv2.COLOR_BGR2GRAY)
+        img2 = cv2.cvtColor(self.transform_image1, cv2.COLOR_BGR2GRAY)
+
+        self.show_img(self.transform_image1)
+
+    def find_mask(self, image):
+        mask = np.all(image != [0, 0, 0], axis=-1).astype(np.uint8) * 255
+        coords = cv2.findNonZero(mask)
+        x, y, w, h = cv2.boundingRect(coords)
+        return image[y:y+h, x:x+w]
+
+    def remove_px(self, px):
         h, w = self.transform_image1.shape[:2]
-        self.transform_image1 = self.transform_image1[60:h-60, 60:w-60]
-        self.transform_image2 = self.transform_image2[60:h-60, 60:w-60]
+        self.transform_image1 = self.transform_image1[px:h-px, px:w-px]
+        self.transform_image2 = self.transform_image2[px:h-px, px:w-px]
 
     def create_corners(self, w, h):
         return np.array([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]], dtype='float32')
 
-a = CutIntersection('pairs/5/camera.jpg', 'pairs/5/kvadra.jpg')
+
+path = '/home/miriteam/sorted2/'
+
+a = CutIntersection(path + 'B/JPEG/000000.jpg', path + 'A/JPEG/000000.jpg')
 a.find_area()
