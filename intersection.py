@@ -1,15 +1,25 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-
+from pathlib import Path
 
 class CutIntersection:
 
-    def __init__(self, camera_image: str, kvadra_image: str):
+    def __init__(
+            self,
+            camera_image: str,
+            kvadra_image: str,
+            type: int,
+            scale: float | None
+            ):
+
         self.image1 = cv2.imread(camera_image)
         self.image2 = cv2.imread(kvadra_image)
+        self.filename = Path(camera_image).stem
+        self.type = type
+        self.scale = float(scale) if scale is not None else None
     
-    def __crop_img(self, img, scale=0.1):
+    def __crop_img(self, img, scale):
         center_x, center_y = img.shape[1] / 2, img.shape[0] / 2
         width_scaled, height_scaled = img.shape[1] * scale, img.shape[0] * scale
         left_x, right_x = center_x - width_scaled / 2, center_x + width_scaled / 2
@@ -17,60 +27,63 @@ class CutIntersection:
         img_cropped = img[int(top_y):int(bottom_y), int(left_x):int(right_x)]
         return img_cropped
 
-    def __homography(self):
-        gray1 = cv2.cvtColor(self.image1, cv2.COLOR_BGR2GRAY)
-        gray2 = cv2.cvtColor(self.image2, cv2.COLOR_BGR2GRAY)
+    def __homography(self, img1, img2):
 
-        orb = cv2.ORB_create()
+        gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+        gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+
+        orb = cv2.ORB_create() if self.type == hash('orb') else cv2.SIFT_create()
 
         keypoints1, descriptors1 = orb.detectAndCompute(gray1, None)
         keypoints2, descriptors2 = orb.detectAndCompute(gray2, None)
 
         bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
 
-        # Сопоставляем дескрипторы
         matches = bf.match(descriptors1, descriptors2)
 
-        # Сортируем совпадения по расстоянию
         matches = sorted(matches, key=lambda x: x.distance)
 
         src_pts = np.float32([keypoints1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
         dst_pts = np.float32([keypoints2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
 
         H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+        # self.show_img(cv2.drawMatches(self.image1, keypoints1, self.image2, keypoints2, matches[:15], outImg = None, flags = cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS))
         return H
     
     def find_area(self):
-        self.image1 = self.__crop_img(self.image1, 0.85)
-        self.image2 = self.__crop_img(self.image2, 0.86)
-        
-        H = self.__homography()
-
+        # self.image1 = self.__crop_img(self.image1, 0.85)
+        # self.image2 = self.__crop_img(self.image2, 0.86)
+        H = self.__homography(self.image1, self.image2)
         h, w, _ = self.image1.shape
-
-        self.transform_image1 = cv2.warpPerspective(self.image1, H, (w, h))
+        ht, wt, _ = self.image2.shape
+        self.transform_image1 = cv2.warpPerspective(self.image1, H, (wt, ht))
         # self.transform_image1 = self.image1
-
         self.corners = self.create_corners(w, h)
 
         self.transform_corners = cv2.perspectiveTransform(self.corners.reshape(-1, 1, 2), H).reshape(-1, 2)
-
         self.inv_corners = cv2.perspectiveTransform(self.transform_corners.reshape(-1, 1, 2), np.linalg.inv(H)).reshape(-1, 2)
         self.inv_corners_int = np.int32(self.inv_corners)
+
+        t = self.transform_corners
+        x0 = int(max(t[0][0], t[1][0]))
+        x1 = int(min(t[2][0], t[3][0]))
+        y0 = int(max(t[0][1], t[3][1]))
+        y1 = int(min(t[1][1], t[2][1]))
+        corners = np.array([[x0, y0], [x0, y1], [x1, y1], [x1, y0]])
         mask_image2 = np.zeros_like(self.image2)
         cv2.fillConvexPoly(mask_image2, np.int32(self.transform_corners), (255, 255, 255))
-        self.transform_image2 = cv2.bitwise_and(self.image2, mask_image2)     
+        self.transform_image2 = cv2.bitwise_and(self.image2, mask_image2)
+        # self.transform_image2 = self.find_mask(self.transform_image2)
 
-        self.transform_image1 = cv2.warpPerspective(self.transform_image1, np.linalg.inv(H), (w, h))
-        self.transform_image2 = cv2.warpPerspective(self.transform_image2, np.linalg.inv(H), (self.image1.shape[1], self.image1.shape[0]))
 
-        self.find_black_area()
-        # self.remove_60px()
-
+        self.transform_image1 = cv2.warpPerspective(self.transform_image1, np.linalg.inv(H), (wt, ht))
+        self.transform_image2 = cv2.warpPerspective(self.transform_image2, np.linalg.inv(H), (wt, ht))
+        print(self.transform_image1.dtype)
         self.show_result()
-
-        cv2.imwrite('res_1.jpg', self.transform_image1)
-        cv2.imwrite('res_2.jpg', self.transform_image2)
+        if self.scale is not None:
+            self.crop_img(self.scale)
+        cv2.imwrite(f'pairs/{self.filename}/res_1.jpg', self.transform_image1)
+        cv2.imwrite(f'pairs/{self.filename}/res_2.jpg', self.transform_image2)
 
     def show_result(self):
 
@@ -140,13 +153,21 @@ class CutIntersection:
         plt.axis('off')
         plt.show()
 
-    def remove_60px(self):
+    def crop_img(self, scale=0.9):
+        self.transform_image1 = (self.__crop_img(self.find_mask(self.transform_image1), scale))
+        self.transform_image2 = (self.__crop_img(self.find_mask(self.transform_image2), scale))
+        self.show_result()
+
+    def find_mask(self, image):
+        mask = np.all(image != [0, 0, 0], axis=-1).astype(np.uint8) * 255
+        coords = cv2.findNonZero(mask)
+        x, y, w, h = cv2.boundingRect(coords)
+        return image[y:y+h, x:x+w]
+
+    def remove_px(self, px):
         h, w = self.transform_image1.shape[:2]
-        self.transform_image1 = self.transform_image1[60:h-60, 60:w-60]
-        self.transform_image2 = self.transform_image2[60:h-60, 60:w-60]
+        self.transform_image1 = self.transform_image1[px:h-px, px:w-px]
+        self.transform_image2 = self.transform_image2[px:h-px, px:w-px]
 
     def create_corners(self, w, h):
         return np.array([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]], dtype='float32')
-
-a = CutIntersection('pairs/5/camera.jpg', 'pairs/5/kvadra.jpg')
-a.find_area()
