@@ -1,15 +1,30 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 
 class CutIntersection:
 
-    def __init__(self, camera_image: str, kvadra_image: str):
+    def __init__(
+            self,
+            camera_image: str,
+            kvadra_image: str,
+            type: int,
+            scale: float | None,
+            file: str | None = None
+            ):
+
         self.image1 = cv2.imread(camera_image)
         self.image2 = cv2.imread(kvadra_image)
+        if file is not None:
+            self.filename = file
+        else:
+            self.filename = Path(camera_image).stem
+        self.type = type
+        self.scale = float(scale) if scale is not None else None
     
-    def __crop_img(self, img, scale=0.1):
+    def __crop_img(self, img, scale):
         center_x, center_y = img.shape[1] / 2, img.shape[0] / 2
         width_scaled, height_scaled = img.shape[1] * scale, img.shape[0] * scale
         left_x, right_x = center_x - width_scaled / 2, center_x + width_scaled / 2
@@ -22,23 +37,23 @@ class CutIntersection:
         gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
         gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
 
-        orb = cv2.ORB_create()
+        orb = cv2.ORB_create() if self.type == hash('orb') else cv2.SIFT_create()
 
         keypoints1, descriptors1 = orb.detectAndCompute(gray1, None)
         keypoints2, descriptors2 = orb.detectAndCompute(gray2, None)
 
         bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
 
-        # Сопоставляем дескрипторы
         matches = bf.match(descriptors1, descriptors2)
 
-        # Сортируем совпадения по расстоянию
         matches = sorted(matches, key=lambda x: x.distance)
 
         src_pts = np.float32([keypoints1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
         dst_pts = np.float32([keypoints2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
 
         H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+        H = H / H[2, 2]
+        # self.show_img(cv2.drawMatches(self.image1, keypoints1, self.image2, keypoints2, matches[:15], outImg = None, flags = cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS))
         return H
     
     def find_area(self):
@@ -46,8 +61,8 @@ class CutIntersection:
         # self.image2 = self.__crop_img(self.image2, 0.86)
         H = self.__homography(self.image1, self.image2)
         h, w, _ = self.image1.shape
-
-        self.transform_image1 = cv2.warpPerspective(self.image1, H, (w, h))
+        ht, wt, _ = self.image2.shape
+        self.transform_image1 = cv2.warpPerspective(self.image1, H, (wt, ht))
         # self.transform_image1 = self.image1
         self.corners = self.create_corners(w, h)
 
@@ -67,12 +82,14 @@ class CutIntersection:
         # self.transform_image2 = self.find_mask(self.transform_image2)
 
 
-        self.transform_image1 = cv2.warpPerspective(self.transform_image1, np.linalg.inv(H), (w, h))
-        self.transform_image2 = cv2.warpPerspective(self.transform_image2, np.linalg.inv(H), (self.image1.shape[1], self.image1.shape[0]))
+        self.transform_image1 = cv2.warpPerspective(self.transform_image1, np.linalg.inv(H), (wt, ht))
+        self.transform_image2 = cv2.warpPerspective(self.transform_image2, np.linalg.inv(H), (wt, ht))
+        # print(self.transform_image1.dtype)
         self.show_result()
-
-        cv2.imwrite('res_1.jpg', self.transform_image1)
-        cv2.imwrite('res_2.jpg', self.transform_image2)
+        if self.scale is not None:
+            self.crop_img(self.scale)
+        cv2.imwrite(f'pairs/{self.filename}/res_1.jpg', self.transform_image1)
+        cv2.imwrite(f'pairs/{self.filename}/res_2.jpg', self.transform_image2)
 
     def show_result(self):
 
@@ -142,12 +159,10 @@ class CutIntersection:
         plt.axis('off')
         plt.show()
 
-    def match(self):
-
-        img1 = cv2.cvtColor(self.transform_image1, cv2.COLOR_BGR2GRAY)
-        img2 = cv2.cvtColor(self.transform_image1, cv2.COLOR_BGR2GRAY)
-
-        self.show_img(self.transform_image1)
+    def crop_img(self, scale=0.9):
+        self.transform_image1 = (self.__crop_img(self.find_mask(self.transform_image1), scale))
+        self.transform_image2 = (self.__crop_img(self.find_mask(self.transform_image2), scale))
+        self.show_result()
 
     def find_mask(self, image):
         mask = np.all(image != [0, 0, 0], axis=-1).astype(np.uint8) * 255
@@ -162,9 +177,3 @@ class CutIntersection:
 
     def create_corners(self, w, h):
         return np.array([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]], dtype='float32')
-
-
-path = '/home/miriteam/sorted2/'
-
-a = CutIntersection(path + 'B/JPEG/000000.jpg', path + 'A/JPEG/000000.jpg')
-a.find_area()
