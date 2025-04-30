@@ -4,3 +4,6 @@ Sony/
 patches/
 crop_images/
 *.jpg
+.vscode/
+__pycache__
+*.h5
