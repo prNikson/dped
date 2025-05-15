@@ -68,6 +68,7 @@ dependencies = [
     { name = "opencv-python" },
     { name = "pyqt5" },
     { name = "pyqt5-qt5" },
+    { name = "rawpy" },
     { name = "scipy" },
     { name = "tqdm" },
 ]
@@ -81,6 +82,7 @@ requires-dist = [
     { name = "opencv-python", specifier = ">=4.11.0.86" },
     { name = "pyqt5", specifier = ">=5.15.11" },
     { name = "pyqt5-qt5", specifier = "==5.15.16" },
+    { name = "rawpy", specifier = ">=0.24.0" },
     { name = "scipy", specifier = ">=1.15.2" },
     { name = "tqdm", specifier = ">=4.67.1" },
 ]
@@ -354,6 +356,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3", size = 342432 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427", size = 229892 },
+]
+
+[[package]]
+name = "rawpy"
+version = "0.24.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fd/51/e6e59a74fb968e93afe969eb46f766379fb59dfffcbca6f68e0288495312/rawpy-0.24.0-cp313-cp313-macosx_10_9_x86_64.whl", hash = "sha256:8689b12779f9ac7b59a744dc12390214b971a70cc121b25c9207f7367889e21d", size = 1118371 },
+    { url = "https://files.pythonhosted.org/packages/56/36/0f4d5b41ae10f9399d5f166fe82b748fd7873d0dda5131ac8eb91723042a/rawpy-0.24.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:b26cae58c2effbec506eeaf36e0ec0fd7bc0f40bebb2754686897ea6389a9f47", size = 1014606 },
+    { url = "https://files.pythonhosted.org/packages/32/6f/6ee2a24c354f6ebcb24ec65e9b4dd952ea0e84178a172186d8e7f5444913/rawpy-0.24.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c7cd218d0c5f7ff00dacfdea36756a5f1d76f3d36815e168a18a86059ff45b94", size = 1920051 },
+    { url = "https://files.pythonhosted.org/packages/1b/05/c406fcac78b22eb3eb8134db400493f2293c917bb09df50acae762e40748/rawpy-0.24.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ee0ce86b2d49f6936943cf633dff6320e83a500dd8c69652ab6f0bcf6b3b45c3", size = 1940898 },
+    { url = "https://files.pythonhosted.org/packages/1c/1b/24809fe4787a6b6b17eb0f49569f1c9092fe8315105b2d5c19b2c5e5bc3f/rawpy-0.24.0-cp313-cp313-win_amd64.whl", hash = "sha256:691d6dc1dac2da3b9f7991b5eec6ff3e520c30e7820e33cb35828c35ff78eea4", size = 851158 },
 ]
 
 [[package]]

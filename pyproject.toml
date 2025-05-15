@@ -12,6 +12,7 @@ dependencies = [
     "opencv-python>=4.11.0.86",
     "pyqt5>=5.15.11",
     "pyqt5-qt5==5.15.16",
+    "rawpy>=0.24.0",
     "scipy>=1.15.2",
     "tqdm>=4.67.1",
 ]
