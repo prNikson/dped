@@ -3,14 +3,9 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from h5 import Dataset
 from pathlib import Path
 from process_image import process_image
-import argparse
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('path')
-filename = 'spring.h5'
-path_dataset = parser.parse_args().path
-
+filename = 'tensorflow22.h5'
 def writer_process(queue):
     with Dataset(filename, 'a') as dataset:
         while True:
@@ -24,9 +19,9 @@ queue = Queue()
 writer = Process(target=writer_process, args=(queue,))
 writer.start()
 
-image_paths = [(str(path.name), i) for i, path in enumerate(Path(path_dataset).glob('*'))]
+image_paths = [(str(path.name), i) for i, path in enumerate(Path('/home/miriteam/A/JPEG').glob('*'))]
 
-with ProcessPoolExecutor(max_workers=2) as executor:
+with ProcessPoolExecutor(max_workers=10) as executor:
     # results = list(executor.map(process_image, image_paths))
     futures = [
         executor.submit(process_image, filename)

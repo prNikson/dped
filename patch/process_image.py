@@ -5,11 +5,60 @@ import numpy as np
 from tqdm import tqdm, trange
 
 
+def crop_img(img, scale):
+    center_x, center_y = img.shape[1] / 2, img.shape[0] / 2
+    width_scaled, height_scaled = img.shape[1] * scale, img.shape[0] * scale
+    left_x, right_x = center_x - width_scaled / 2, center_x + width_scaled / 2
+    top_y, bottom_y = center_y - height_scaled / 2, center_y + height_scaled / 2
+    img_cropped = img[int(top_y):int(bottom_y), int(left_x):int(right_x)]
+    return img_cropped
+
 def process_image(arg: tuple[str, int]) -> list | None:
     filename, index = arg
-    if (res := intersection(filename)) is not None:
-        img1, img2 = res
+    path = '/home/miriteam/Desktop/modified_dataset/dataset/'
+    img1 = cv2.imread(f'{path}kvadra/{filename}')
+    img2 = cv2.imread(f'{path}sony/{filename}')
 
+    gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+    gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+
+    sift = cv2.AKAZE_create()
+
+    kp1, des1 = sift.detectAndCompute(gray1, None)
+    kp2, des2 = sift.detectAndCompute(gray2, None)
+
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING)
+    matches = bf.knnMatch(des1,des2, k=2)
+    good_matches = []
+    for m,n in matches:
+        if m.distance < 0.9*n.distance:
+            good_matches.append(m)
+    # bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+    # matches = bf.match(des1, des2)
+    # matches = sorted(matches, key=lambda x: x.distance)
+
+    # good_matches = matches[:50]
+
+    src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(-1,1,2)
+    dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches]).reshape(-1,1,2)
+
+    H, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
+
+    height, width = img1.shape[:2]
+    warped_img2 = cv2.warpPerspective(img2, H, (width, height))
+
+    overlap_mask = (cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY) > 0) & (cv2.cvtColor(warped_img2, cv2.COLOR_BGR2GRAY) > 0)
+
+    if not (np.count_nonzero(overlap_mask) == 0):
+        ys, xs = np.where(overlap_mask)
+        x_min, x_max = xs.min(), xs.max()
+        y_min, y_max = ys.min(), ys.max()
+
+        crop1 = img1[y_min:y_max, x_min:x_max]
+        crop2 = warped_img2[y_min:y_max, x_min:x_max]
+
+       # img1, img2 = crop_img(crop1, 0.95), crop_img(crop2, 0.95)
+        img1, img2 = crop1, crop2
         if img1.shape != img2.shape:
             return None
 
@@ -52,10 +101,14 @@ def process_image(arg: tuple[str, int]) -> list | None:
                         y1 = y - 10
                     
                     patch1 = img1[y:y+100, x:x+100]
+                    # if np.any(patch1 == 0):
+                    #     continue
                     patch1_copy = patch1.copy()
                     for j in range(1, 11 + ky):
                         for i in range(1, 11 + kx):
                             patch2 = img2[y1+j:y1+100+j, x1+i:x1+100+i]
+                            # if np.any(patch1 == 0) or np.any(patch2 == 0):
+                            #     continue
                             patch2_copy = patch2.copy()
                             flat1 = cv2.cvtColor(patch1_copy, cv2.COLOR_BGR2GRAY).flatten()
                             flat2 = cv2.cvtColor(patch2_copy, cv2.COLOR_BGR2GRAY).flatten()
@@ -78,43 +131,3 @@ def process_image(arg: tuple[str, int]) -> list | None:
                 # max_cor = np.mean(correlation)
                 # norm_correlation = max_cor / (np.linalg.norm(patch1) * np.linalg.norm(patch2))
         return patches_list
-
-def intersection(filename: str) -> tuple | None:
-
-    img1 = cv2.imread(f'/home/miriteam/Desktop/B/JPEG/{filename}')
-    img2 = cv2.imread(f'/home/miriteam/Desktop/A/JPEG/{filename}')
-
-    gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
-    gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-
-    sift = cv2.AKAZE_create()
-
-    kp1, des1 = sift.detectAndCompute(gray1, None)
-    kp2, des2 = sift.detectAndCompute(gray2, None)
-
-    bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
-    matches = bf.match(des1, des2)
-    matches = sorted(matches, key=lambda x: x.distance)
-
-    good_matches = matches[:50]
-
-    src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(-1,1,2)
-    dst_pts = np.float32([kp2[m.pathtrainIdx].pt for m in good_matches]).reshape(-1,1,2)
-
-    H, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
-
-    height, width = img1.shape[:2]
-    warped_img2 = cv2.warpPerspective(img2, H, (width, height))
-
-    overlap_mask = (cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY) > 0) & (cv2.cvtColor(warped_img2, cv2.COLOR_BGR2GRAY) > 0)
-
-    if not (np.count_nonzero(overlap_mask) == 0):
-        ys, xs = np.where(overlap_mask)
-        x_min, x_max = xs.min(), xs.max()
-        y_min, y_max = ys.min(), ys.max()
-
-        crop1 = img1[y_min:y_max, x_min:x_max]
-        crop2 = warped_img2[y_min:y_max, x_min:x_max]
-
-        return (crop1, crop2)
-    return None

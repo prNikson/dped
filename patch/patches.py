@@ -8,10 +8,12 @@ from tqdm import tqdm, trange
 from pathlib import Path
 
 
-image_paths = [str(i) for i in Path('pairs').glob('*')]
-for path in image_paths:
-    img1 = cv2.imread(str(path) + '/res_1.jpg')
-    img2 = cv2.imread(str(path) + '/res_2.jpg')
+
+
+if 1:
+    path = '/home/miriteam/'
+    img1 = cv2.imread(str(path) + '/A/000102.jpg')
+    img2 = cv2.imread(str(path) + '/B/000102.jpg')
 
     assert img1.shape == img2.shape
 
@@ -66,13 +68,13 @@ for path in image_paths:
                             cor_arr.append(correlation)
                     max_cor = max(cor_arr)
                     if max_cor >= cross_corr:
-                        i = cor_arr.index(max_cor)
-                        dataset.insert(
-                            np.transpose(patch1, (2, 0, 1)),
-                            np.transpose(patch_arr[i], (2, 0, 1))
-                        )
-                        # cv2.imwrite(f'patches/sony/{c}.jpg', patch1)
-                        # cv2.imwrite(f'patches/kvadra/{c}.jpg', patch_arr[i])
+                        i = cor_arr.index(max_cor)	
+                        #dataset.insert(
+                        #    np.transpose(patch1, (2, 0, 1)),
+                        #    np.transpose(patch_arr[i], (2, 0, 1))
+                        #)
+                        cv2.imwrite(f'patches/sony/{c}.jpg', patch1)
+                        cv2.imwrite(f'patches/kvadra/{c}.jpg', patch_arr[i])
                         c += 1
                     cor_arr = []
                     patch_arr = []

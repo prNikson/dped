@@ -45,6 +45,6 @@ class Dataset(h5py.File):
     def print(self):
         print(self.sony[-1])
 
-    def insert(self, sony, kvadra):
+    def insert(self, kvadra, sony):
         self._append(self.sony, sony)
         self._append(self.kvadra, kvadra)

@@ -1,77 +1,116 @@
 import cv2
+from scipy.signal import correlate2d
+from scipy.stats import pearsonr
 import numpy as np
-import matplotlib.pyplot as plt
+from tqdm import tqdm, trange
 
 
-def crop_img(img, scale=1.0):
-    center_x, center_y = img.shape[1] / 2, img.shape[0] / 2
-    width_scaled, height_scaled = img.shape[1] * scale, img.shape[0] * scale
-    left_x, right_x = center_x - width_scaled / 2, center_x + width_scaled / 2
-    top_y, bottom_y = center_y - height_scaled / 2, center_y + height_scaled / 2
-    img_cropped = img[int(top_y):int(bottom_y), int(left_x):int(right_x)]
-    return img_cropped
+filename = '0.jpg'
+path = '/home/miriteam/Desktop/modified_dataset/dataset/'
+img1 = cv2.imread(f'{path}kvadra/{filename}')
+img2 = cv2.imread(f'{path}sony/{filename}')
 
-def gomography(image1, image2) -> list:
-    gray1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
-    gray2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
 
-    orb = cv2.ORB_create()
+sift = cv2.AKAZE_create()
 
-    keypoints1, descriptors1 = orb.detectAndCompute(gray1, None)
-    keypoints2, descriptors2 = orb.detectAndCompute(gray2, None)
+kp1, des1 = sift.detectAndCompute(gray1, None)
+kp2, des2 = sift.detectAndCompute(gray2, None)
 
-    bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+bf = cv2.BFMatcher(cv2.NORM_HAMMING)
+matches = bf.knnMatch(des1,des2, k=2)
+good_matches = []
+for m,n in matches:
+    if m.distance < 0.9*n.distance:
+        good_matches.append(m)
 
-    # Сопоставляем дескрипторы
-    matches = bf.match(descriptors1, descriptors2)
+src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(-1,1,2)
+dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches]).reshape(-1,1,2)
 
-    # Сортируем совпадения по расстоянию
-    matches = sorted(matches, key=lambda x: x.distance)
+H, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
 
-    src_pts = np.float32([keypoints1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
-    dst_pts = np.float32([keypoints2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
+height, width = img1.shape[:2]
+warped_img2 = cv2.warpPerspective(img2, H, (width, height))
 
-    H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-    return H
+overlap_mask = (cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY) > 0) & (cv2.cvtColor(warped_img2, cv2.COLOR_BGR2GRAY) > 0)
 
-def area(image1, image2):
-    image1 = crop_img(image1, 0.85)
-    image2 = crop_img(image2, 0.86)
-    H = gomography(image1, image2)
-    transform_image1 = cv2.warpPerspective(image1, H, (image2.shape[1], image2.shape[0]))
-    h, w, _ = image1.shape
-    corners = np.array([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]], dtype='float32')
-    transformed_corners = cv2.perspectiveTransform(corners.reshape(-1, 1, 2), H).reshape(-1, 2)
-    mask_image2 = np.zeros_like(image2)
-    cv2.fillConvexPoly(mask_image2, np.int32(transformed_corners), (255, 255, 255))
-    transform_image2 = cv2.bitwise_and(image2, mask_image2)
-    transform_image1 = cv2.warpPerspective(transform_image1, np.linalg.inv(H), (image1.shape[1], image1.shape[0]))
-    transform_image2 = cv2.warpPerspective(transform_image2, np.linalg.inv(H), (image1.shape[1], image1.shape[0]))
-    plt.figure(figsize=(15, 10))
-    plt.subplot(1, 4, 1)
-    plt.imshow(cv2.cvtColor(image1, cv2.COLOR_BGR2RGB))
-    plt.title('Image 1')
-    plt.axis('off')
+if not (np.count_nonzero(overlap_mask) == 0):
+    ys, xs = np.where(overlap_mask)
+    x_min, x_max = xs.min(), xs.max()
+    y_min, y_max = ys.min(), ys.max()
 
-    plt.subplot(1, 4, 2)
-    plt.imshow(cv2.cvtColor(image2, cv2.COLOR_BGR2RGB))
-    plt.title('Image 2')
-    plt.axis('off')
+    crop1 = img1[y_min:y_max, x_min:x_max]
+    crop2 = warped_img2[y_min:y_max, x_min:x_max]
+    img1, img2 = crop1, crop2
+    height, width, _ = img1.shape
+    c = 0
+    counter = 0
+    cross_corr = 0.9
 
-    plt.subplot(1, 4, 3)
-    plt.imshow(cv2.cvtColor(transform_image1, cv2.COLOR_BGR2RGB))
-    plt.title('Highlighted Area in Image 2')
-    plt.axis('off')
+    patch_arr = list()
+    cor_arr = list()
+    patches_list = list()
 
-    plt.subplot(1, 4, 4)
-    plt.imshow(cv2.cvtColor(transform_image2, cv2.COLOR_BGR2RGB))
-    plt.title('Highlighted Area in Image 2')
-    plt.axis('off')
-    plt.show()
-    cv2.imwrite('res_image1.jpg', transform_image1)
-    cv2.imwrite('res_image2.jpg', transform_image2)
+    x1, y1 = 0, 0
+    for y in trange(1, height, 100):
+        print(f"************ {1} step ****************")
+        for x in range(1, width, 100):
+            if x + 109 < width and y + 109 < height:
+                start_x = 1
+                finish_x = width
+                start_y = 1
+                finish_y = height
 
-image1 = cv2.imread('pairs/2/camera.jpg')
-image2 = cv2.imread('pairs/2/kvadra.jpg')
+                kx = 0
+                ky = 0
 
-result_image = area(image1, image2)
+                if x - start_x <= 10:
+                    kx = x - start_x
+                elif finish_x - x <= 10:
+                    kx = finish_x - x
+                else:
+                    kx = 10
+                    x1 = x - 10
+                
+                if y - start_y <= 10:
+                    ky = y - start_y
+                elif finish_y - y <= 10:
+                    ky = finish_y - y
+                else:
+                    ky = 10
+                    y1 = y - 10
+                
+                patch1 = img1[y:y+100, x:x+100]
+                # if np.any(patch1 == 0):
+                #     continue
+                patch1_copy = patch1.copy()
+                for j in range(1, 11 + ky):
+                    for i in range(1, 11 + kx):
+                        patch2 = img2[y1+j:y1+100+j, x1+i:x1+100+i]
+                        # if np.any(patch1 == 0) or np.any(patch2 == 0):
+                        #     continue
+                        patch2_copy = patch2.copy()
+                        flat1 = cv2.cvtColor(patch1_copy, cv2.COLOR_BGR2GRAY).flatten()
+                        flat2 = cv2.cvtColor(patch2_copy, cv2.COLOR_BGR2GRAY).flatten()
+                        correlation, _ = pearsonr(flat1, flat2)
+                        print(correlation)
+                        patch_arr.append(patch2)
+                        cor_arr.append(correlation)
+                max_cor = max(cor_arr)
+                if max_cor >= cross_corr:
+                    i = cor_arr.index(max_cor)
+                    cv2.imwrite(f'sony/{c}.jpg', patch1)
+                    cv2.imwrite(f'kvadra/{c}.jpg', patch_arr[i])
+                    # patches_list.append(
+                    #     [
+                    #         np.transpose(patch1, (2, 0, 1)),
+                    #         np.transpose(patch_arr[i], (2, 0, 1))
+                    #     ]
+                    # )
+                    c += 1
+                cor_arr = []
+                patch_arr = []
+            # correlation = correlate2d(patch1, patch2, mode='full')
+            # max_cor = np.mean(correlation)
+            # norm_correlation = max_cor / (np.linalg.norm(patch1) * np.linalg.norm(patch2))
